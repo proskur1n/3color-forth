@@ -93,21 +93,22 @@ defer backtrack
   \ 2dup ." backtrack_color (before) node=" . ." color=" . .s cr \ TODO
 
   2>r r@ cells edges + $@ bounds +do
-    \ ." save " .s cr
     i @ dup nodes + c@ swap ( ... bitset neighbor )
   cell +loop
 
-  2r@ set-color backtrack >r
+  2r@ set-color
 
-  r'@ cells edges + $@ bounds +do
-    \ ." restore (a) " .s cr
-    tuck nodes + c! pq-adjust
-    \ ." restore (b) " .s cr
-  cell +loop
-
-  \ 2dup ." backtrack_color (after) node=" . ." color=" . .s cr \ TODO
-
-  r> dup if 2r> ( b color node ) nodes + c! else 2rdrop endif
+  backtrack if
+    r@ cells edges + $@ bounds +do
+      2drop
+    cell +loop
+    2r> ( colors node ) nodes + c! true
+  else
+    r@ cells edges + $@ bounds +do
+      tuck nodes + c! pq-adjust
+    cell +loop
+    2rdrop false
+  endif
 ;
 
 : _backtrack ( -- b )
