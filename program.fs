@@ -9,10 +9,9 @@
 ;
 
 : parse-positive
-  parse-name s>number d>s \ check > 0 and not empty
+  parse-name s>number d>s \ TODO check > 0 and not empty
 ;
 
-\ TODO rename to remove-node or remove ?
 : parse-vertex
   parse-positive
 ;
@@ -125,19 +124,28 @@ defer backtrack
 ;
 ' _backtrack is backtrack
 
+: 3colorable? ( -- b )
+  |nodes| pq-create ->pq
+  nodes |nodes| %111 fill
+  pq-empty? ?dup 0= if
+    \ Do not backtrack the first node.
+    pq-pop dup CRED backtrack-color swap pq-push
+  endif
+;
+
 : output-color ( color -- )
   case
-    CRED of s" red" endof
-    CGREEN of s" green" endof
-    CBLUE of s" blue" endof
-    s" white" rot
+    CRED of s" tomato" endof
+    CGREEN of s" mediumseagreen" endof
+    CBLUE of s" skyblue" endof
+    s" lightgray" rot
   endcase type
 ;
 
 : output-graph ( -- )
   ." graph G {" cr
   |nodes| 1+ 1 +do
-    ."   " i . ." [color=" nodes i + c@ output-color ." ];" cr
+    ."   " i . ." [style=filled, fillcolor=" nodes i + c@ output-color ." ];" cr
   loop
   |nodes| 1+ 1 +do
       i cells edges + $@ bounds +do
@@ -149,15 +157,13 @@ defer backtrack
   ." }" cr
 ;
 
-: check ( -- b )
-  |nodes| pq-create ->pq
-  nodes |nodes| %111 fill
-  \ TODO: Do not backtrack on first node.
-
-  backtrack dup if ." positive" else ." negative" endif
-
-
+: check ( -- )
+  3colorable? if ." yes" else ." no" endif cr
 ;
 
-include graphs/clique.dimacs
-|nodes| pq-create ->pq
+: visualize ( -- )
+  3colorable? drop
+  s" dot -Tpng | feh -" w/o open-pipe throw
+    ['] output-graph over outfile-execute
+  close-file throw
+;
