@@ -19,7 +19,6 @@
 0 value |nodes|
 defer nodes    \ V + -> (CRED CGREEN CBLUE or or)
 defer edges    \ V cells + -> neighbors ...
-defer assigned \ V + -> CRED | CGREEN | CBLUE \ TODO remove
 0 value pq
 
 : c postpone \
@@ -30,8 +29,7 @@ defer assigned \ V + -> CRED | CGREEN | CBLUE \ TODO remove
   parse-positive
     dup ->|nodes| 1+
     dup noname create latestxt is nodes [ CRED CGREEN CBLUE or or ] literal allot-init
-    dup noname create latestxt is edges cells 0 allot-init
-        noname create latestxt is assigned 0 allot-init
+        noname create latestxt is edges cells 0 allot-init
   parse-positive drop
 ;
 
@@ -63,25 +61,27 @@ defer assigned \ V + -> CRED | CGREEN | CBLUE \ TODO remove
   pq @ 0=
 ;
 
+: foreach-neighbor ( node -- )
+  ]] cells edges + $@ bounds +do [[
+; immediate
+
+: end-foreach ( -- )
+  ]] cell +loop [[
+; immediate
+
+: iter ( -- neighbor )
+  ]] i @ [[
+; immediate
+
 : propagate-to-neighbor ( color neighbor -- )
-  \ ." before propagate " .s cr
   tuck nodes + tuck c@ swap invert and swap c! pq-adjust
-  \ ." after propagate " .s cr
 ;
 
 : set-color ( color node -- )
-  \ ." before set-color " .s cr
-
-  ." set node=" dup . ." to color=" over . cr
-
-  2dup assigned + c! \ TODO probably not needed
-
-  cells edges + $@ bounds +do
-    dup i @ propagate-to-neighbor
-  cell +loop
-  \ ." after (0) set-color " .s cr
+  foreach-neighbor
+    dup iter propagate-to-neighbor
+  end-foreach
   drop
-  \ ." after set-color " .s cr
 ;
 
 defer backtrack
@@ -89,31 +89,27 @@ defer backtrack
 : backtrack-color ( node color -- b )
   swap 2dup nodes + c@ and 0= if 2drop false exit endif ( color node )
 
-  \ 2dup ." backtrack_color (before) node=" . ." color=" . .s cr \ TODO
-
-  2>r r@ cells edges + $@ bounds +do
-    i @ dup nodes + c@ swap ( ... bitset neighbor )
-  cell +loop
+  2>r r@ foreach-neighbor
+    iter nodes + c@ iter ( ... bitset neighbor )
+  end-foreach
 
   2r@ set-color
 
   backtrack if
-    r@ cells edges + $@ bounds +do
+    r@ foreach-neighbor
       2drop
-    cell +loop
+    end-foreach
     2r> ( colors node ) nodes + c! true
   else
-    r@ cells edges + $@ bounds +do
+    r@ foreach-neighbor
       tuck nodes + c! pq-adjust
-    cell +loop
+    end-foreach
     2rdrop false
   endif
 ;
 
 : _backtrack ( -- b )
   pq-empty? if true exit else pq-pop endif
-
-  \ ." backtrack node=" dup . .s cr
 
               dup CRED backtrack-color
   ?dup 0= if  dup CGREEN backtrack-color endif
@@ -148,11 +144,11 @@ defer backtrack
     ."   " i . ." [style=filled, fillcolor=" nodes i + c@ output-color ." ];" cr
   loop
   |nodes| 1+ 1 +do
-      i cells edges + $@ bounds +do
-        j i @ <= if
+      i foreach-neighbor
+        j iter <= if
           ."   " j . ." -- " i @ 0 .r ." ;" cr
         endif
-      cell +loop
+      end-foreach
   loop
   ." }" cr
 ;
