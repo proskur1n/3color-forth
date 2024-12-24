@@ -1,4 +1,5 @@
 p edge 9 10
+c positive instance
 e 1 2
 e 2 3
 e 2 5
