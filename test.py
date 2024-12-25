@@ -13,13 +13,13 @@ def is_colorable(filename):
         return None
 
 total = 0
+tested = 0
 successful = 0
 
 start = time.time()
 
 for filename in glob("graphs/*.dimacs"):
-    process = subprocess.run(["gforth", "program.fs", filename, "-e", "check bye"], stdout=subprocess.PIPE, text=True)
-    output = process.stdout.strip()
+    total += 1
     match is_colorable(filename):
         case True:
             expected = "yes"
@@ -28,15 +28,14 @@ for filename in glob("graphs/*.dimacs"):
         case None:
             print(f"{filename} : Skipping, please specify whether the graph is 3-colorable.")
             continue
-    total += 1
+    process = subprocess.run(["gforth", "program.fs", filename, "-e", "check bye"], stdout=subprocess.PIPE, text=True)
+    output = process.stdout.strip()
     if output != expected:
         print(f"{filename} : Expected '{expected}' but received '{output}.'")
     else:
         successful += 1
+    tested += 1
 
 duration = round(time.time() - start, 2)
 
-if total == successful:
-    print(f"ok ... {duration} seconds")
-else:
-    print(f"{duration} seconds")
+print(f"{"ok" if tested == successful else "fail"} [{successful}/{tested}] ... {duration} seconds")
