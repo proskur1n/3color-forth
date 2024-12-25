@@ -69,19 +69,23 @@ defer edges    \ V cells + -> neighbors ...
   nodes tuck + c@ >r + c@ r> popcnt swap popcnt swap <
 ;
 
-: pq-parent ( i -- parent ) 2/ ;
-
-: pq-children ( i -- left right ) 2* dup 1+ ;
-
-: pq-left ( i -- left ) 2* ;
-
-: pq-right ( i -- right ) 2* 1+ ;
-
 : pq-swap ( pq i j -- pq )
   cells third + swap cells third + ( pq j_addr i_addr )
   2dup swap-cells
   @ swap @ ( pq i_node j_node )
   third dup cell- @ cells + swap-array-elements
+;
+
+: left ( pq i -- left|0 )
+  2* swap @ over >= and
+;
+
+: right ( pq i -- right|0 )
+  2* 1+ swap @ over >= and
+;
+
+: parent ( i -- parent|0 )
+  2/
 ;
 
 \ Returns index of the node that should be colored first according
@@ -92,42 +96,27 @@ defer edges    \ V cells + -> neighbors ...
 ;
 
 : favoured-child ( pq i -- left|right|0 )
-  over @ over pq-left ( pq i size left ) >= if
-    over @ over pq-right ( pq i size right ) >= if
-      pq-children favoured
-    else
-      nip pq-left
-    endif
-  else
-    2drop 0
-  endif
+  2dup right if 2* dup 1+ favoured else left endif
 ;
 
-: heapify-down ( pq i -- pq ) recursive
-  2dup 2dup favoured-child ?dup 0<> if
-    ( pq i pq i child )
-    favoured 2dup <> if
-      ( pq i child )
-      dup >r pq-swap r> heapify-down
-    else
-      2drop
-    endif
-  else
-    3drop
-  endif
+: should-descend ( pq i -- child|0 )
+  2dup favoured-child dup 0= if -rot 2drop exit endif
+  dup >r favoured r> tuck = and
 ;
 
-\ TODO different parameter order than heapify-down
-: -heapify-up ( i pq -- ) recursive
-  swap dup pq-parent ?dup 0= if
-    2drop exit
-  endif ( pq i parent )
-  3dup favoured over <> if
-    ( pq i parent )
-    dup >r pq-swap r> swap -heapify-up
-  else
-    3drop
-  endif
+: should-ascend ( pq i -- parent|0 )
+  dup parent dup 0= if -rot 2drop exit endif
+  dup >r favoured r> tuck <> and
+;
+
+: heapify-down ( pq i -- ) recursive
+  2dup should-descend ?dup 0= if 2drop exit endif
+  dup >r pq-swap r> heapify-down
+;
+
+: heapify-up ( pq i -- ) recursive
+  2dup should-ascend ?dup 0= if 2drop exit endif
+  dup >r pq-swap r> heapify-up
 ;
 
 \ Priority queue (max binary heap) memory layout:
@@ -148,8 +137,8 @@ defer edges    \ V cells + -> neighbors ...
   1+ 1 u+do
     i cells over + i over ! ,
   loop
-  dup @ pq-parent 1 swap -[do
-    i heapify-down
+  dup @ parent 1 swap -[do
+    dup i heapify-down
   -1 +loop
 ;
 
@@ -157,7 +146,7 @@ defer edges    \ V cells + -> neighbors ...
   \ TODO refactor
   pq pq @ 2dup 1- swap ! ( pq size )
   2dup 1 pq-swap drop \ TODO ( pq size )
-  swap 1 heapify-down ( size pq )
+  swap dup 1 heapify-down ( size pq )
   swap cells over + @ ( pq node )
   over cell- @ + cells + ( node_lookup_addr )
   dup @ @ 0 rot !
@@ -168,13 +157,13 @@ defer edges    \ V cells + -> neighbors ...
   pq @ 1+ dup pq ! ( node new_size )
   tuck cells pq + 2dup ! ( new_size node node_addr )
   swap pq cell- @ + cells pq + ! ( new_size )
-  pq -heapify-up
+  pq swap heapify-up
 ;
 
 : pq-adjust ( node -- )
   \ TODO some heuristics may require heapify down (or when restoring bitmasks)
   \ TODO refactor
-  pq cell- @ + cells pq + @ ?dup 0<> if pq - cell/ pq -heapify-up endif
+  pq cell- @ + cells pq + @ ?dup 0<> if pq - cell/ pq swap heapify-up endif
 ;
 
 : pq-empty? ( -- b )
