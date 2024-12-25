@@ -16,20 +16,16 @@
   >r cells r@ + swap cells r> + swap-cells
 ;
 
-: 3dup ( w1 w2 w3 -- w1 w2 w3 )
-  third third third
+: parse-number ( "number" -- n err )
+  parse-name s>number? 0= or
 ;
 
-: 3drop ( w1 w2 w3 -- )
-  2drop drop
+: parse-nonnegative ( "number" -- n )
+  parse-number over 0< or abort" expected: <nonnegative integer>"
 ;
 
-: parse-positive
-  parse-name s>number d>s \ TODO check > 0 and not empty
-;
-
-: parse-vertex
-  parse-positive
+: parse-positive ( "number" -- n )
+  parse-number over 0<= or abort" expected: <positive integer>"
 ;
 
 0 value |nodes|
@@ -42,16 +38,16 @@ defer edges    \ V cells + -> neighbors ...
 
 : p ( ``edge'' "nodes" "edges" -- )
   parse-name s" edge" compare abort" expected: p edge <nodes> <edges>"
-  parse-positive
+  parse-nonnegative
     dup ->|nodes| 1+
     dup noname create latestxt is nodes [ CRED CGREEN CBLUE or or ] literal allot-init
         noname create latestxt is edges cells 0 allot-init
-  parse-positive drop
+  parse-nonnegative drop
 ;
 
 : e ( "u" "v" -- )
-  parse-vertex
-  parse-vertex
+  parse-positive
+  parse-positive
   2dup cells edges + >stack
   swap cells edges + >stack
 ;
