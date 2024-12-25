@@ -41,13 +41,13 @@ def save(g, colors):
             file.write(f"c {"positive" if colors != None else "negative"} instance\n")
             file.write(f"p edge {len(g.nodes)} {len(g.edges)}\n")
             for u, v in g.edges:
-                file.write(f"e {u} {v}\n")
+                file.write(f"e {u+1} {v+1}\n")
             print("Saved as", path)
     except FileExistsError:
         i += 1
 
-num_nodes = random.randint(15, 70) if len(argv) < 2 else argv[1]
-num_edges = random.randint(int(0.9*num_nodes), int(4*num_nodes)) if len(argv) < 3 else argv[2]
+num_nodes = random.randint(15, 70) if len(argv) < 2 else int(argv[1])
+num_edges = random.randint(int(0.9*num_nodes), int(3*num_nodes)) if len(argv) < 3 else int(argv[2])
 edge_probability = num_edges / math.comb(num_nodes, 2)
 g = nx.erdos_renyi_graph(num_nodes, edge_probability)
 
