@@ -58,11 +58,15 @@ defer edges    \ V cells + -> neighbors ...
   repeat nip
 ;
 
+: rem-values ( node -- n )
+  nodes + c@ popcnt
+;
+
 \ Heuristic for the backtracking order. Returns true if node1 should be
 \ assigned a color before node2.
 : before ( node1 node2 -- b )
-  \ TODO
-  nodes tuck + c@ >r + c@ r> popcnt swap popcnt swap <
+  \ Minimum-Remaining-Values Heuristic
+  rem-values swap rem-values >
 ;
 
 : pq-swap ( pq i j -- pq )
@@ -86,9 +90,11 @@ defer edges    \ V cells + -> neighbors ...
 
 \ Returns index of the node that should be colored first according
 \ to a heuristic.
-: favoured { pq fst snd } ( -- fst|snd )
-  \ TODO
-  pq fst cells + @ pq snd cells + @ before if fst else snd endif
+: favoured ( pq i j -- i|j )
+  rot >r
+  over cells r@ + @
+  over cells r> + @
+  before if drop else nip endif
 ;
 
 : favoured-child ( pq i -- left|right|0 )
