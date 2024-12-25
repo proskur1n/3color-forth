@@ -8,6 +8,22 @@
   here -rot over allot fill
 ;
 
+: swap-cells ( addr1 addr2 -- )
+  dup @ >r over @ swap ! r> swap !
+;
+
+: swap-array-elements ( offset1 offset2 baseaddr -- )
+  >r cells r@ + swap cells r> + swap-cells
+;
+
+: 3dup ( w1 w2 w3 -- w1 w2 w3 )
+  third third third
+;
+
+: 3drop ( w1 w2 w3 -- )
+  2drop drop
+;
+
 : parse-positive
   parse-name s>number d>s \ TODO check > 0 and not empty
 ;
@@ -40,21 +56,125 @@ defer edges    \ V cells + -> neighbors ...
   swap cells edges + >stack
 ;
 
+: popcnt ( w - count )
+  0 begin over while
+    1+ swap dup 1- and swap
+  repeat nip
+;
+
+\ Heuristic for the backtracking order. Returns true if node1 should be
+\ assigned a color before node2.
+: before ( node1 node2 -- b )
+  \ TODO
+  nodes tuck + c@ >r + c@ r> popcnt swap popcnt swap <
+;
+
+: pq-parent ( i -- parent ) 2/ ;
+
+: pq-children ( i -- left right ) 2* dup 1+ ;
+
+: pq-left ( i -- left ) 2* ;
+
+: pq-right ( i -- right ) 2* 1+ ;
+
+: pq-swap ( pq i j -- pq )
+  cells third + swap cells third + ( pq j_addr i_addr )
+  2dup swap-cells
+  @ swap @ ( pq i_node j_node )
+  third dup cell- @ cells + swap-array-elements
+;
+
+\ Returns index of the node that should be colored first according
+\ to a heuristic.
+: favoured { pq fst snd } ( -- fst|snd )
+  \ TODO
+  pq fst cells + @ pq snd cells + @ before if fst else snd endif
+;
+
+: favoured-child ( pq i -- left|right|0 )
+  over @ over pq-left ( pq i size left ) >= if
+    over @ over pq-right ( pq i size right ) >= if
+      pq-children favoured
+    else
+      nip pq-left
+    endif
+  else
+    2drop 0
+  endif
+;
+
+: heapify-down ( pq i -- pq ) recursive
+  2dup 2dup favoured-child ?dup 0<> if
+    ( pq i pq i child )
+    favoured 2dup <> if
+      ( pq i child )
+      dup >r pq-swap r> heapify-down
+    else
+      2drop
+    endif
+  else
+    3drop
+  endif
+;
+
+\ TODO different parameter order than heapify-down
+: -heapify-up ( i pq -- ) recursive
+  swap dup pq-parent ?dup 0= if
+    2drop exit
+  endif ( pq i parent )
+  3dup favoured over <> if
+    ( pq i parent )
+    dup >r pq-swap r> swap -heapify-up
+  else
+    3drop
+  endif
+;
+
+\ Priority queue (max binary heap) memory layout:
+\
+\ +---+---+-------------------------+-------------------------+
+\ |cap|len|           heap          |          lookup         |
+\ +---+---+-------------------------+-------------------------+
+\     ^    \                       / \                       /
+\     pq     size == cells |nodes|     size == cells |nodes|
+\
+\ Note that pq doesn't point to the very beginning of the data structure. This
+\ hacky solution simplifies address arithmetic for the heap and lookup regions
+\ and allows to get the number of remaining element in the queue by simply
+\ calling "pq @".
+\
 : pq-create ( size -- pq )
-  here over dup , cells allot swap ( pq size )
-  1+ 1 u+do i over i cells + ! loop
+  align dup , here swap dup , dup cells allot ( pq size )
+  1+ 1 u+do
+    i cells over + i over ! ,
+  loop
+  dup @ pq-parent 1 swap -[do
+    i heapify-down
+  -1 +loop
 ;
 
-: pq-pop ( -- node ) \ TODO heapify
-  pq dup @ 2dup 1- swap ! cells + @
+: pq-pop ( -- node )
+  \ TODO refactor
+  pq pq @ 2dup 1- swap ! ( pq size )
+  2dup 1 pq-swap drop \ TODO ( pq size )
+  swap 1 heapify-down ( size pq )
+  swap cells over + @ ( pq node )
+  over cell- @ + cells + ( node_lookup_addr )
+  dup @ @ 0 rot !
 ;
 
-: pq-push ( node -- ) \ TODO heapify
-  pq dup @ 1+ 2dup swap ! cells + !
+: pq-push ( node -- )
+  \ TODO refactor
+  pq @ 1+ dup pq ! ( node new_size )
+  tuck cells pq + 2dup ! ( new_size node node_addr )
+  swap pq cell- @ + cells pq + ! ( new_size )
+  pq -heapify-up
 ;
 
 : pq-adjust ( node -- )
-  drop \ TODO
+  \ TODO some heuristics may require heapify down (or when restoring bitmasks)
+  \ TODO refactor
+  pq cell- @ + cells pq + @ ?dup 0<> if pq - cell/ pq -heapify-up endif
 ;
 
 : pq-empty? ( -- b )
