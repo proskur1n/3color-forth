@@ -9,11 +9,11 @@
 ;
 
 : swap-cells ( addr1 addr2 -- )
-  dup @ >r over @ swap ! r> swap !
+  dup @ -rot over @ swap ! !
 ;
 
 : swap-array-elements ( offset1 offset2 baseaddr -- )
-  >r cells r@ + swap cells r> + swap-cells
+  >r cells swap cells r> dup d+ swap-cells
 ;
 
 : parse-number ( "number" -- n err )
