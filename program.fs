@@ -69,11 +69,23 @@ defer edges    \ V cells + -> neighbors ...
   rem-values swap rem-values >
 ;
 
+: lookup ( node pq -- node_lookup_addr )
+  tuck cell- @ + cells +
+;
+
+: set-node ( pq node i -- pq )
+  rot >r
+  2dup cells r@ + ! ( node i )
+  swap r@ lookup !
+  r>
+;
+
 : pq-swap ( pq i j -- pq )
-  cells third + swap cells third + ( pq j_addr i_addr )
-  2dup swap-cells
-  @ swap @ ( pq i_node j_node )
-  third dup cell- @ cells + swap-array-elements
+  { ith jth } \ TODO
+  dup ith cells + @ { inode }
+  dup jth cells + @ { jnode }
+  inode jth set-node
+  jnode ith set-node
 ;
 
 : left ( pq i -- left|0 )
@@ -111,13 +123,13 @@ defer edges    \ V cells + -> neighbors ...
   dup >r favoured r> tuck <> and
 ;
 
-: heapify-down ( pq i -- ) recursive
-  2dup should-descend ?dup 0= if 2drop exit endif
+: heapify-down ( pq i -- pq ) recursive
+  2dup should-descend ?dup 0= if drop exit endif
   dup >r pq-swap r> heapify-down
 ;
 
-: heapify-up ( pq i -- ) recursive
-  2dup should-ascend ?dup 0= if 2drop exit endif
+: heapify-up ( pq i -- pq ) recursive
+  2dup should-ascend ?dup 0= if drop exit endif
   dup >r pq-swap r> heapify-up
 ;
 
@@ -137,35 +149,39 @@ defer edges    \ V cells + -> neighbors ...
 : pq-create ( size -- pq )
   align dup , here swap dup , dup cells allot ( pq size )
   1+ 1 u+do
-    i cells over + i over ! ,
+    i over i cells + !
+    i ,
   loop
   dup @ parent 1 swap -[do
-    dup i heapify-down
+    i heapify-down
   -1 +loop
 ;
 
 : pq-pop ( -- node )
-  \ TODO refactor
-  pq pq @ 2dup 1- swap ! ( pq size )
-  2dup 1 pq-swap drop \ TODO ( pq size )
-  swap dup 1 heapify-down ( size pq )
-  swap cells over + @ ( pq node )
-  over cell- @ + cells + ( node_lookup_addr )
-  dup @ @ 0 rot !
+  pq @ dup 1- pq ! pq cell+ @ { size node }
+  pq
+    1 size pq-swap
+    1 heapify-down
+    node over lookup 0 swap !
+  drop
+  node
 ;
 
 : pq-push ( node -- )
-  \ TODO refactor
-  pq @ 1+ dup pq ! ( node new_size )
-  tuck cells pq + 2dup ! ( new_size node node_addr )
-  swap pq cell- @ + cells pq + ! ( new_size )
-  pq swap heapify-up
+  pq tuck @ 1+ dup pq ! ( pq node newsize )
+  dup >r set-node r> heapify-up drop
+  \ pq @ 1+ dup pq ! { node newsize }
+  \ pq
+  \   node newsize set-node
+  \   newsize heapify-up
+  \ drop
 ;
 
 : pq-adjust ( node -- )
-  \ TODO some heuristics may require heapify down (or when restoring bitmasks)
-  \ TODO refactor
-  pq cell- @ + cells pq + @ ?dup 0<> if pq - cell/ pq swap heapify-up endif
+  pq tuck lookup @ ?dup if
+    2dup should-ascend if heapify-up else heapify-down endif
+  endif
+  drop
 ;
 
 : pq-empty? ( -- b )
