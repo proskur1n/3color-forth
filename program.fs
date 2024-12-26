@@ -268,6 +268,7 @@ defer backtrack
 
 : output-graph ( -- )
   ." graph G {" cr
+  ."   ratio=1;" cr
   |nodes| 1+ 1 +do
     ."   " i . ." [style=filled, fillcolor=" nodes i + c@ output-color ." ];" cr
   loop
@@ -287,7 +288,7 @@ defer backtrack
 
 : visualize ( -- )
   3colorable? drop
-  s" dot -Tpng | feh -" w/o open-pipe throw
+  s" dot -Tpng -Kdot | feh -" w/o open-pipe throw
     ['] output-graph over outfile-execute
   close-file throw
 ;
