@@ -81,11 +81,12 @@ defer edges    \ V cells + -> neighbors ...
 ;
 
 : pq-swap ( pq i j -- pq )
-  { ith jth } \ TODO
-  dup ith cells + @ { inode }
-  dup jth cells + @ { jnode }
-  inode jth set-node
-  jnode ith set-node
+  rot >r
+  2dup r@ swap-array-elements
+  cells r@ + @ swap
+  cells r@ + @
+  0 r@ lookup swap-array-elements
+  r>
 ;
 
 : left ( pq i -- left|0 )
