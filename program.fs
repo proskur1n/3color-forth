@@ -62,11 +62,17 @@ defer edges    \ V cells + -> neighbors ...
   nodes + c@ popcnt
 ;
 
+: degree ( node -- n )
+  cells edges + $@len cell/
+;
+
 \ Heuristic for the backtracking order. Returns true if node1 should be
 \ assigned a color before node2.
 : before ( node1 node2 -- b )
   \ Minimum-Remaining-Values Heuristic
-  rem-values swap rem-values >
+  over rem-values over rem-values - ?dup if nip nip 0< exit endif
+  \ Maximum-Degree Heuristic
+  degree swap degree <
 ;
 
 : lookup ( node pq -- node_lookup_addr )
