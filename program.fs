@@ -1,5 +1,3 @@
-#! /bin/env -S gforth -e bye
-
 %001 constant CRED
 %010 constant CGREEN
 %100 constant CBLUE
